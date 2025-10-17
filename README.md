@@ -14,45 +14,50 @@ The model allows estimation of:
 * **Isotemporal reallocations**, i.e., simulated substitutions of minutes between behaviors.
 * **Graphical and 3D visualizations** of predicted changes across the compositional space.
 
-
-
 ## Visualization
 
-The script generates several outputs:
+The script produces a comprehensive set of visual and analytical outputs:
 
 1. **Compositional Means Barplot**
-   Displays average daily time-use distribution.
+   Displays the average time-use distribution across all behaviors (e.g., Sleep, SB, LPA, MVPA for 1440-min or SB, LPA, MVPA for 600-min). This provides a clear overview of how the sample allocates time across daily activity domains.
 
 2. **Isotemporal Reallocation Curves**
-   For each outcome, simulates ±30-minute reallocations between all pairs of behaviors.
+   For each health-related outcome, the model simulates ±30-minute reallocations between all possible pairs of behaviors, predicting how small changes in time distribution affect the dependent variable while maintaining the compositional constraint (sum = 1).
 
-3. **3D Surfaces**
-   Displays smooth predictive surfaces where two behaviors vary simultaneously and others adjust to maintain closure.
+3. **3D Predictive Surfaces**
+   Generates smooth surfaces where two behaviors vary simultaneously and the remaining components adjust proportionally to preserve closure. These surfaces reveal nonlinear and joint effects among behaviors on each outcome.
 
-All plots are rendered using **Matplotlib** and **Seaborn**.
+All figures are rendered with **Matplotlib** and **Seaborn**, ensuring clarity and reproducibility across environments.
 
----
+
 
 ## Workflow
 
-1. **Input**:
-   Upload `.xlsx` or `.sav` file interactively. The script automatically detects encoding and cleans NaN or zero values.
+1. **Input Stage**
+   The user interactively uploads a `.xlsx` or `.sav` file. The function automatically detects file type and encoding, cleans missing or zero values, and prepares the dataset for compositional analysis.
 
-2. **Choose Model Type**:
+2. **Automatic Model Selection**
+   The script identifies the appropriate structure:
 
-   * `600` minutes (school-day composition: SB, LPA, MVPA)
-   * `1440` minutes (full-day composition: Sleep, SB, LPA, MVPA)
+   * **600-minute model:** school-day composition (SB, LPA, MVPA)
+   * **1440-minute model:** full-day composition (Sleep, SB, LPA, MVPA)
 
-3. **Execution**:
-   Runs full ILR-based regression models, isotemporal simulations, and visual outputs.
+3. **Execution Phase**
+   Runs the complete analytical pipeline, including:
 
-4. **Output**:
+   * ILR transformation and OLS regression models
+   * ANOVA-based model diagnostics
+   * Isotemporal substitution simulations (±30 min)
+   * Generation of all visual outputs (barplots, reallocation curves, 3D surfaces)
 
-   * Summary tables and ANOVA
-   * Realocation plots and surfaces
-   * Optional export to Excel for simulated results
+4. **Output Stage**
+   Displays:
 
----
+   * Statistical summaries and ANOVA tables
+   * Realocation plots and 3D predictive surfaces
+   * Optional export of simulated data and model outputs to Excel for further analysis
+
+
 
 ## Mathematical Rationale
 

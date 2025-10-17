@@ -272,3 +272,6 @@ def run_compositional_full():
                 plt.show()
 
     print("\n✅ Análise composicional concluída com sucesso!")
+
+
+def run_compositional_full()

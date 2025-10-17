@@ -56,6 +56,84 @@ All figures are rendered with **Matplotlib** and **Seaborn**, ensuring clarity a
    * Statistical summaries and ANOVA tables
    * Realocation plots and 3D predictive surfaces
    * Optional export of simulated data and model outputs to Excel for further analysis
+  
+Perfeito — aqui está uma seção para seu **README** explicando as **condições e requisitos que a base de dados deve atender** para que o script `run_compositional_full()` funcione corretamente.
+O texto está em inglês, formal e pronto para inclusão no GitHub:
+
+---
+
+## Data Requirements
+
+To ensure correct execution, the uploaded dataset must follow specific structure and variable conventions. The function automatically detects the model type (600 min or 1440 min) based on column names, but the following conditions must be met:
+
+### 1. Supported File Formats
+
+* **`.sav`** (SPSS format)
+  Encoding is automatically detected (`latin1` or `windows-1252`).
+* **`.xlsx`** (Excel format)
+  Each variable must be stored in columns with headers in the first row.
+
+### 2. Required Variables
+
+#### (a) **600-minute composition (school-day model)**
+
+Dataset must include at least these columns:
+
+```
+SB__Butte
+LPA_Butte
+MVPA_Butte
+SEX_1
+BMI
+TOTALSCORE
+LOCOMOTION
+MANIPULATION
+```
+
+* All compositional variables (`SB__Butte`, `LPA_Butte`, `MVPA_Butte`) must be **positive** and **non-zero**.
+* The script automatically removes rows with missing (`NaN`) or zero values.
+
+#### (b) **1440-minute composition (full-day model)**
+
+Dataset must include at least these columns:
+
+```
+Sleep_time_min
+Avg_sedentary
+Avg_light
+Avg_MVPA
+Sex
+BMI
+Laps
+agility_coord
+horizontal_jump
+```
+
+* Time-use variables must sum approximately to 1440 minutes per day.
+* Missing or zero values in any component are excluded automatically.
+
+### 3. Data Cleaning Rules
+
+Before model fitting, the function:
+
+1. Drops fully empty rows.
+2. Removes observations with `NaN` in the compositional variables.
+3. Converts non-numeric data to numeric format.
+4. Excludes zero or negative values (closure transformation requires strictly positive inputs).
+
+### 4. Automatic Detection
+
+* If the file contains the columns `SB__Butte`, `LPA_Butte`, and `MVPA_Butte`, it is processed as **school-day (600 min)**.
+* If it contains `Sleep_time_min`, `Avg_sedentary`, `Avg_light`, and `Avg_MVPA`, it is processed as **full-day (1440 min)**.
+* Any other structure will trigger a warning and terminate execution.
+
+### 5. Recommended Format
+
+Each row should represent one participant or observation, with columns corresponding to:
+
+* **Compositional parts** (minutes in each activity)
+* **Covariates** (e.g., `sex`)
+* **Outcomes** (e.g., `BMI`, `TOTALSCORE`, `agility_coord`, etc.)
 
 
 

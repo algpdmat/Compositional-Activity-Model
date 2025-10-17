@@ -58,20 +58,66 @@ def run_compositional_full():
     df = df.dropna(how="all").reset_index(drop=True)
     if tipo == "school":
         cols = ["SB__Butte", "LPA_Butte", "MVPA_Butte"]
-        df = df.dropna(subset=cols)
-        df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
-        df = df[(df[cols] > 0).all(axis=1)].reset_index(drop=True)
     else:
         cols = ["Sleep_time_min", "Avg_sedentary", "Avg_light", "Avg_MVPA"]
-        df = df.dropna(subset=cols)
-        df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
-        df = df[(df[cols] > 0).all(axis=1)].reset_index(drop=True)
+    df = df.dropna(subset=cols)
+    df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+    df = df[(df[cols] > 0).all(axis=1)].reset_index(drop=True)
     print("✅ Dados limpos.")
 
     # =========================
-    # 4️⃣ Modelos Composicionais
+    # 4️⃣ Plot de Médias Composicionais
+    # =========================
+    print("\n📈 Plotando médias composicionais...")
+
+    if tipo == "school":
+        p_sb = df["SB__Butte"].mean() / total
+        p_lpa = df["LPA_Butte"].mean() / total
+        p_mvpa = df["MVPA_Butte"].mean() / total
+
+        labels = ["SB", "LPA", "MVPA"]
+        values = np.array([p_sb, p_lpa, p_mvpa]) * total
+        colors = ['#1f77b4', '#2ca02c', '#d62728']
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        bars = ax.barh(labels, values, color=colors)
+        for bar in bars:
+            width = bar.get_width()
+            ax.text(width + 5, bar.get_y() + bar.get_height()/2,
+                    f'{width:.1f} min', va='center', fontsize=10)
+        ax.set_xlim(0, total)
+        ax.set_xlabel("Tempo (min)")
+        ax.set_title("Compositional Means — df_school (Total = 600 min)")
+        plt.tight_layout()
+        plt.show()
+
+    else:
+        p_sleep = df["Sleep_time_min"].mean() / total
+        p_sb = df["Avg_sedentary"].mean() / total
+        p_lpa = df["Avg_light"].mean() / total
+        p_mvpa = df["Avg_MVPA"].mean() / total
+
+        labels = ["Sleep", "SB", "LPA", "MVPA"]
+        values = np.array([p_sleep, p_sb, p_lpa, p_mvpa]) * total
+        colors = ['#9467bd', '#1f77b4', '#2ca02c', '#d62728']
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        bars = ax.barh(labels, values, color=colors)
+        for bar in bars:
+            width = bar.get_width()
+            ax.text(width + 10, bar.get_y() + bar.get_height()/2,
+                    f'{width:.1f} min', va='center', fontsize=10)
+        ax.set_xlim(0, total)
+        ax.set_xlabel("Tempo (min)")
+        ax.set_title("Compositional Means — df (Total = 1440 min)")
+        plt.tight_layout()
+        plt.show()
+
+    # =========================
+    # 5️⃣ Modelos e Gráficos
     # =========================
     if tipo == "school":
+        # --- ILR ---
         sb = df["SB__Butte"]; lpa = df["LPA_Butte"]; mvpa = df["MVPA_Butte"]
         comp = pd.concat([sb, lpa, mvpa], axis=1)
         comp.columns = ["SB", "LPA", "MVPA"]
@@ -88,21 +134,23 @@ def run_compositional_full():
         desfechos = ["BMI", "TOTALSCORE", "LOCOMOTION", "MANIPULATION"]
         print("\n🚀 Modelo composicional (600 min) iniciado.")
 
+        # --- Funções auxiliares ---
+        def ilr_transform(x): return np.log(x) @ V.T
+
         for resp in desfechos:
-            if resp not in df.columns:
-                continue
-            df_ilr[resp] = df[resp].values
+            if resp not in df.columns: continue
+            df_ilr[resp] = df[resp]
             model = smf.ols(f"{resp} ~ ilr1 + ilr2 + sex", data=df_ilr).fit()
             print(f"\n📊 Modelo {resp}:")
             print(model.summary())
             print(anova_lm(model))
 
-            # ===== Realocação de tempo =====
+            # --- Realocações ---
             PAI_NOMES = ['SB', 'LPA', 'MVPA']
             PARES = [(0,1),(0,2),(1,0),(1,2),(2,0),(2,1)]
             minute_range = np.arange(-30,31,1)
             delta = minute_range / total
-            mean_ilr = np.log(m) @ V.T
+            mean_ilr = ilr_transform(m)
             pred_mean = model.predict(pd.DataFrame({"ilr1":[mean_ilr[0]],"ilr2":[mean_ilr[1]],"sex":[sex_ref]}))[0]
 
             fig, axes = plt.subplots(2, 3, figsize=(15,7))
@@ -113,7 +161,7 @@ def run_compositional_full():
                 for d,min_shift in zip(delta,minute_range):
                     if m[i_from]-d<0 or m[i_to]+d<0: continue
                     m_mod=m.copy(); m_mod[i_from]-=d; m_mod[i_to]+=d; m_mod=closure(m_mod)
-                    ilr_mod=np.log(m_mod)@V.T
+                    ilr_mod=ilr_transform(m_mod)
                     pred=float(model.predict(pd.DataFrame({"ilr1":[ilr_mod[0]],"ilr2":[ilr_mod[1]],"sex":[sex_ref]}))[0])
                     reg.append({"minutos":min_shift,"pred":pred})
                 if not reg: ax.axis("off"); continue
@@ -123,26 +171,29 @@ def run_compositional_full():
                 ax.set_title(f"{PAI_NOMES[i_from]}→{PAI_NOMES[i_to]}")
             plt.tight_layout(); plt.show()
 
-            # ===== Superfície 3D =====
-            X,Y=np.meshgrid(np.arange(-30,31,3),np.arange(-30,31,3))
-            Z=np.full_like(X,np.nan,dtype=float)
-            for r in range(X.shape[0]):
-                for c in range(X.shape[1]):
-                    di,dj=X[r,c]/total,Y[r,c]/total
-                    m_i=m[0]+di; m_j=m[1]+dj; m_k=1-m_i-m_j
-                    if (m_i<=0)|(m_j<=0)|(m_k<=0): continue
-                    vec=closure([m_i,m_j,m_k])
-                    ilr=np.log(vec)@V.T
-                    Z[r,c]=float(model.predict(pd.DataFrame({"ilr1":[ilr[0]],"ilr2":[ilr[1]],"sex":[sex_ref]}))[0])
-            mask=~np.isnan(Z)
-            fig=plt.figure(figsize=(6,5))
-            ax=fig.add_subplot(111,projection='3d')
-            ax.plot_trisurf(X[mask],Y[mask],Z[mask],linewidth=0.2)
-            ax.set_title(f"{resp} — SB&LPA (3D)")
-            ax.set_xlabel("Δmin SB"); ax.set_ylabel("Δmin LPA"); ax.set_zlabel("Predição")
-            plt.show()
+            # --- Superfícies 3D ---
+            pares=[(0,1,"SB & LPA"),(0,2,"SB & MVPA"),(1,2,"LPA & MVPA")]
+            for (i,j,tit) in pares:
+                X,Y=np.meshgrid(np.arange(-30,31,3),np.arange(-30,31,3))
+                Z=np.full_like(X,np.nan,dtype=float)
+                for r in range(X.shape[0]):
+                    for c in range(X.shape[1]):
+                        di,dj=X[r,c]/total,Y[r,c]/total
+                        m_i,m_j=m[i]+di,m[j]+dj;m_k=1-m_i-m_j
+                        if (m_i<=0)|(m_j<=0)|(m_k<=0): continue
+                        vec=closure([m_i,m_j,m_k])
+                        ilr=ilr_transform(vec)
+                        Z[r,c]=float(model.predict(pd.DataFrame({"ilr1":[ilr[0]],"ilr2":[ilr[1]],"sex":[sex_ref]}))[0])
+                mask=~np.isnan(Z)
+                fig=plt.figure(figsize=(6,5))
+                ax=fig.add_subplot(111,projection='3d')
+                ax.plot_trisurf(X[mask],Y[mask],Z[mask],linewidth=0.2)
+                ax.set_title(f"{resp} — {tit}")
+                ax.set_xlabel("Δmin i"); ax.set_ylabel("Δmin j"); ax.set_zlabel("Predição")
+                plt.show()
 
     else:
+        # --- ILR 4 partes ---
         sleep = df["Sleep_time_min"]; sb = df["Avg_sedentary"]
         lpa = df["Avg_light"]; mvpa = df["Avg_MVPA"]
         comp = pd.concat([sleep,sb,lpa,mvpa],axis=1)
@@ -160,21 +211,22 @@ def run_compositional_full():
         desfechos = ["BMI","Laps","agility_coord","horizontal_jump"]
         print("\n🚀 Modelo composicional (1440 min) iniciado.")
 
+        def ilr_transform(x): return np.log(x) @ V.T
+
         for resp in desfechos:
-            if resp not in df.columns:
-                continue
-            df_ilr[resp] = df[resp].values
+            if resp not in df.columns: continue
+            df_ilr[resp] = df[resp]
             model = smf.ols(f"{resp} ~ ilr1 + ilr2 + ilr3 + sex", data=df_ilr).fit()
             print(f"\n📊 Modelo {resp}:")
             print(model.summary())
             print(anova_lm(model))
 
-            # ===== Realocação =====
+            # --- Realocações ---
             PAI_NOMES=['Sleep','SB','LPA','MVPA']
             PARES=[(i,j) for i in range(4) for j in range(4) if i!=j]
             minute_range=np.arange(-30,31,1)
-            delta=minute_range/1440
-            mean_ilr=np.log(m)@V.T
+            delta=minute_range/total
+            mean_ilr=ilr_transform(m)
             pred_mean=float(model.predict(pd.DataFrame({"ilr1":[mean_ilr[0]],"ilr2":[mean_ilr[1]],"ilr3":[mean_ilr[2]],"sex":[sex_ref]}))[0])
 
             fig,axes=plt.subplots(3,4,figsize=(20,9));axes=axes.ravel()
@@ -184,7 +236,7 @@ def run_compositional_full():
                 for d,min_shift in zip(delta,minute_range):
                     if m[i_from]-d<0 or m[i_to]+d<0: continue
                     m_mod=m.copy();m_mod[i_from]-=d;m_mod[i_to]+=d;m_mod=closure(m_mod)
-                    ilr_mod=np.log(m_mod)@V.T
+                    ilr_mod=ilr_transform(m_mod)
                     pred=float(model.predict(pd.DataFrame({"ilr1":[ilr_mod[0]],"ilr2":[ilr_mod[1]],"ilr3":[ilr_mod[2]],"sex":[sex_ref]}))[0])
                     reg.append({"minutos":min_shift,"pred":pred})
                 if not reg: ax.axis("off"); continue
@@ -194,14 +246,14 @@ def run_compositional_full():
                 ax.set_title(f"{PAI_NOMES[i_from]}→{PAI_NOMES[i_to]}")
             plt.tight_layout();plt.show()
 
-            # ===== Superfície 3D =====
-            pares=[(1,3,"SB & MVPA"),(2,3,"LPA & MVPA")]
+            # --- Superfícies 3D ---
+            pares=[(1,3,"SB & MVPA"),(2,3,"LPA & MVPA"),(0,1,"Sleep & SB")]
             for (i,j,tit) in pares:
                 X,Y=np.meshgrid(np.arange(-30,31,3),np.arange(-30,31,3))
                 Z=np.full_like(X,np.nan,dtype=float)
                 for r in range(X.shape[0]):
                     for c in range(X.shape[1]):
-                        di,dj=X[r,c]/1440,Y[r,c]/1440
+                        di,dj=X[r,c]/total,Y[r,c]/total
                         m_i=m[i]+di;m_j=m[j]+dj;resto=1-m_i-m_j
                         if resto<=0: continue
                         prop_fix=m[[k for k in range(4) if k not in [i,j]]];prop_fix/=prop_fix.sum()
@@ -209,7 +261,7 @@ def run_compositional_full():
                         vec=np.zeros(4);vec[i]=m_i;vec[j]=m_j
                         vec[[k for k in range(4) if k not in [i,j]]]=fix
                         vec=closure(vec)
-                        ilr=np.log(vec)@V.T
+                        ilr=ilr_transform(vec)
                         Z[r,c]=float(model.predict(pd.DataFrame({"ilr1":[ilr[0]],"ilr2":[ilr[1]],"ilr3":[ilr[2]],"sex":[sex_ref]}))[0])
                 mask=~np.isnan(Z)
                 fig=plt.figure(figsize=(6,5))
@@ -220,5 +272,3 @@ def run_compositional_full():
                 plt.show()
 
     print("\n✅ Análise composicional concluída com sucesso!")
-
-run_compositional_full()

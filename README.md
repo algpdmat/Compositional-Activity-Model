@@ -1,7 +1,3 @@
-Perfect — here’s a **complete, publication-style README.md** for your GitHub repository.
-It is clean, fully in English, no emojis, and includes conceptual grounding, equations, and references to the scientific literature that support your compositional model.
-
----
 
 # Compositional Data Analysis of Time-Use (CoDA 600–1440 min)
 

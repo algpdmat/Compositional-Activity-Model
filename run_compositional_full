@@ -1,3 +1,11 @@
+# ============================================
+# 🔧 Setup inicial do ambiente (instala pacotes necessários)
+# ============================================
+!pip install scikit-bio statsmodels pyreadstat seaborn
+
+# ============================================
+# 🧠 Script principal — Análise Composicional Completa
+# ============================================
 def run_compositional_full():
     import pandas as pd
     import numpy as np
@@ -8,23 +16,23 @@ def run_compositional_full():
     import statsmodels.api as sm
     from skbio.stats.composition import closure, sbp_basis
     import pyreadstat, os
-    from tkinter import Tk, filedialog
     from mpl_toolkits.mplot3d import Axes3D
+    from google.colab import files   # ✅ compatível com Colab
 
     # =========================
-    # 1️⃣ Escolha do arquivo
+    # 1️⃣ Upload do arquivo no Colab
     # =========================
-    Tk().withdraw()
-    caminho = filedialog.askopenfilename(
-        title="Selecione o arquivo (.sav ou .xlsx)",
-        filetypes=[("SPSS / Excel", "*.sav *.xlsx")]
-    )
-    if not caminho:
+    print("📤 Faça upload do arquivo (.sav ou .xlsx) para iniciar a análise:")
+    uploaded = files.upload()  # abre seletor de arquivo
+    if not uploaded:
         print("❌ Nenhum arquivo selecionado.")
         return
+    caminho = list(uploaded.keys())[0]
+    print(f"\n📂 Arquivo carregado: {caminho}")
 
-    print(f"\n📂 Arquivo selecionado: {os.path.basename(caminho)}")
-
+    # =========================
+    # 2️⃣ Leitura do arquivo
+    # =========================
     if caminho.endswith(".sav"):
         try:
             df, meta = pyreadstat.read_sav(caminho, encoding='latin1')
@@ -38,7 +46,7 @@ def run_compositional_full():
     print(f"→ Linhas: {df.shape[0]} | Colunas: {df.shape[1]}")
 
     # =========================
-    # 2️⃣ Detectar tipo de base
+    # 3️⃣ Detectar tipo de base
     # =========================
     if set(["SB__Butte", "LPA_Butte", "MVPA_Butte"]).issubset(df.columns):
         tipo = "school"
@@ -53,7 +61,7 @@ def run_compositional_full():
         return
 
     # =========================
-    # 3️⃣ Limpeza
+    # 4️⃣ Limpeza
     # =========================
     df = df.dropna(how="all").reset_index(drop=True)
     if tipo == "school":
@@ -66,7 +74,7 @@ def run_compositional_full():
     print("✅ Dados limpos.")
 
     # =========================
-    # 4️⃣ Plot de Médias Composicionais
+    # 5️⃣ Plot de Médias Composicionais
     # =========================
     print("\n📈 Plotando médias composicionais...")
 
@@ -114,10 +122,9 @@ def run_compositional_full():
         plt.show()
 
     # =========================
-    # 5️⃣ Modelos e Gráficos
+    # 6️⃣ Modelos e Gráficos
     # =========================
     if tipo == "school":
-        # --- ILR ---
         sb = df["SB__Butte"]; lpa = df["LPA_Butte"]; mvpa = df["MVPA_Butte"]
         comp = pd.concat([sb, lpa, mvpa], axis=1)
         comp.columns = ["SB", "LPA", "MVPA"]
@@ -134,7 +141,6 @@ def run_compositional_full():
         desfechos = ["BMI", "TOTALSCORE", "LOCOMOTION", "MANIPULATION"]
         print("\n🚀 Modelo composicional (600 min) iniciado.")
 
-        # --- Funções auxiliares ---
         def ilr_transform(x): return np.log(x) @ V.T
 
         for resp in desfechos:
@@ -145,7 +151,7 @@ def run_compositional_full():
             print(model.summary())
             print(anova_lm(model))
 
-            # --- Realocações ---
+            # Realocações
             PAI_NOMES = ['SB', 'LPA', 'MVPA']
             PARES = [(0,1),(0,2),(1,0),(1,2),(2,0),(2,1)]
             minute_range = np.arange(-30,31,1)
@@ -171,7 +177,7 @@ def run_compositional_full():
                 ax.set_title(f"{PAI_NOMES[i_from]}→{PAI_NOMES[i_to]}")
             plt.tight_layout(); plt.show()
 
-            # --- Superfícies 3D ---
+            # Superfícies 3D
             pares=[(0,1,"SB & LPA"),(0,2,"SB & MVPA"),(1,2,"LPA & MVPA")]
             for (i,j,tit) in pares:
                 X,Y=np.meshgrid(np.arange(-30,31,3),np.arange(-30,31,3))
@@ -193,7 +199,9 @@ def run_compositional_full():
                 plt.show()
 
     else:
-        # --- ILR 4 partes ---
+        # -------------------------
+        # Versão 1440 min
+        # -------------------------
         sleep = df["Sleep_time_min"]; sb = df["Avg_sedentary"]
         lpa = df["Avg_light"]; mvpa = df["Avg_MVPA"]
         comp = pd.concat([sleep,sb,lpa,mvpa],axis=1)
@@ -221,7 +229,7 @@ def run_compositional_full():
             print(model.summary())
             print(anova_lm(model))
 
-            # --- Realocações ---
+            # Realocações
             PAI_NOMES=['Sleep','SB','LPA','MVPA']
             PARES=[(i,j) for i in range(4) for j in range(4) if i!=j]
             minute_range=np.arange(-30,31,1)
@@ -246,7 +254,7 @@ def run_compositional_full():
                 ax.set_title(f"{PAI_NOMES[i_from]}→{PAI_NOMES[i_to]}")
             plt.tight_layout();plt.show()
 
-            # --- Superfícies 3D ---
+            # Superfícies 3D
             pares=[(1,3,"SB & MVPA"),(2,3,"LPA & MVPA"),(0,1,"Sleep & SB")]
             for (i,j,tit) in pares:
                 X,Y=np.meshgrid(np.arange(-30,31,3),np.arange(-30,31,3))
@@ -273,5 +281,7 @@ def run_compositional_full():
 
     print("\n✅ Análise composicional concluída com sucesso!")
 
-
-def run_compositional_full()
+# ============================================
+# ▶️ Executar
+# ============================================
+run_compositional_full()
